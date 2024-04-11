@@ -130,3 +130,191 @@ AND m1.film_id <> m2.film_id;
 -- Un film venant d'une table avec alias ne correspond à lui-même dans l'autre table avec alias.
 
 -- Aliases de tables également utiles dans les nested queries utilisant les clauses EXISTS et ON.
+
+-- 2. AGGREGATION DES DONNEES
+--===========================
+
+-- But des fonct°s d'aggrégat° : Découvrir les propriétés d'un groupe de record(Nbre de records ds une table, nbre de records partageant une propriété, moyenne, max, min).
+
+-- 2.1. DISTINCT
+--------------------------
+
+-- Pas vraiment une fonct° d'aggrégation, mais un filtre post-traitement
+-- Permet de supprimer les doublons
+
+SELECT DISTINCT first_name
+FROM actor JOIN film_actor USING (actor_id);
+
+/* =>
++-------------+
+| first_name  |
++-------------+
+| PENELOPE    |
+| NICK        |
+| ...         |
+| GREGORY     |
+| JOHN        |
+| BELA        |
+| THORA       |
++-------------+ */
+
+-- Si clause DISTINCT retirée:
+
+SELECT first_name
+FROM actor JOIN film_actor USING (actor_id)
+LIMIT 5;
+
+/* =>
++------------+
+| first_name |
++------------+
+| PENELOPE   |
+| PENELOPE   |
+| PENELOPE   |
+| PENELOPE   |
+| PENELOPE   |
++------------+ */
+
+-- La clause DISTINCT s'applique sur l'output et supprimme les records ayant des valeurs identiques dans les colonnes selectionnées pour l'output dans la query.
+
+SELECT DISTINCT first_name, last_name
+FROM actor JOIN film_actor USING (actor_id);
+
+/* =>
++-------------+--------------+
+| first_name  | last_name    |
++-------------+--------------+
+| PENELOPE    | GUINESS      |
+| NICK        | WAHLBERG     |
+| ...                        |
+| JULIA       | FAWCETT      |
+| THORA       | TEMPLE       |
++-------------+--------------+ */
+
+-- /!\ Utiliser cette clause avec prudence si le dataset est grand
+
+-- 2.2. GROUP BY
+----------------
+
+-- Groupe l'output dans le but de l'aggrégation.
+-- Permet d'utiliser les fonctions d'aggrégation sur les données quand le contenu de la clause SELECT contient des colonnes autres que celles contenues dans une fonct° d'aggrégat°.
+
+SELECT first_name FROM actor
+WHERE first_name IN ('GENE', 'MERYL');
+
+/* =>
++------------+
+| first_name |
++------------+
+| GENE       |
+| GENE       |
+| MERYL      |
+| GENE       |
+| MERYL      |
++------------+ */
+
+SELECT first_name FROM actor
+WHERE first_name IN ('GENE', 'MERYL')
+GROUP BY first_name;
+
+/* =>
++------------+
+| first_name |
++------------+
+| GENE       |
+| MERYL      |
++------------+ */
+
+-- Similaire à DISTINCT. Différence : Evalués et éxecutés à des stades différents de l'éxecution de la query. 
+-- Toute colonne appartenant au contenu de la clause SELECT qui ne fait pas partie d'une fonct° d'aggrégati° devrait être listée dans GROUP BY. Cette règle peut être enfreinte si chaque groupe résultant ne contient qu'une seule colonne.
+
+SELECT first_name, last_name, COUNT(film_id) AS num_films 
+FROM actor INNER JOIN film_actor USING (actor_id)
+GROUP BY first_name, last_name
+ORDER BY num_films DESC LIMIT 10;
+
+/* =>
++------------+-------------+-----------+
+| first_name | last_name   | num_films |
++------------+-------------+-----------+
+| SUSAN      | DAVIS       |        54 |
+| GINA       | DEGENERES   |        42 |
+| WALTER     | TORN        |        41 |
+| MARY       | KEITEL      |        40 |
+| MATTHEW    | CARREY      |        39 |
+| SANDRA     | KILMER      |        37 |
+| SCARLETT   | DAMON       |        36 |
+| VAL        | BOLGER      |        35 |
+| ANGELA     | WITHERSPOON |        35 |
+| UMA        | WOOD        |        35 |
++------------+-------------+-----------+ */
+
+-- COUNT ignore les valeurs NULL.
+
+SELECT title, name AS category_name, COUNT(*) AS cnt
+FROM film INNER JOIN film_actor USING (film_id)
+INNER JOIN film_category USING (film_id)
+INNER JOIN category USING (category_id)
+GROUP BY film_id, category_id
+ORDER BY cnt DESC LIMIT 5;
+
+/* =>
++------------------+---------------+-----+
+| title            | category_name | cnt |
++------------------+---------------+-----+
+| LAMBS CINCINATTI | Games         |  15 |
+| CRAZY HOME       | Comedy        |  13 |
+| CHITTY LOCK      | Drama         |  13 |
+| RANDOM GO        | Sci-Fi        |  13 |
+| DRACULA CRYSTAL  | Classics      |  13 |
++------------------+---------------+-----+ */
+
+SELECT email, name AS category_name, COUNT(category_id) AS cnt
+FROM customer cs INNER JOIN rental USING (customer_id)
+INNER JOIN inventory USING (inventory_id)
+INNER JOIN film_category USING (film_id)
+INNER JOIN category cat USING (category_id)
+GROUP BY 1, 2
+ORDER BY 3 DESC LIMIT 5;
+
+/* =>
++----------------------------------+---------------+-----+
+| email                            | category_name | cnt |
++----------------------------------+---------------+-----+
+| WESLEY.BULL@sakilacustomer.org   | Games         |   9 |
+| ALMA.AUSTIN@sakilacustomer.org   | Animation     |   8 |
+| KARL.SEAL@sakilacustomer.org     | Animation     |   8 |
+| LYDIA.BURKE@sakilacustomer.org   | Documentary   |   8 |
+| NATHAN.RUNYON@sakilacustomer.org | Animation     |   7 |
++----------------------------------+---------------+-----+ */
+
+-- 1, 2, 3 : Numéro de position des colonnes apparaissant dans la clause SELECT
+
+-- Trouver les acteurs possédant le même nom et prénom
+
+SELECT a1.actor_id, a1.first_name, a1.last_name
+FROM actor AS a1, actor AS a2
+WHERE a1.first_name = a2.first_name
+AND a1.last_name = a2.last_name
+AND a1.actor_id <> a2.actor_id;
+
+/* =>
++----------+------------+-----------+
+| actor_id | first_name | last_name |
++----------+------------+-----------+
+|      101 | SUSAN      | DAVIS     |
+|      110 | SUSAN      | DAVIS     |
++----------+------------+-----------+ */
+
+
+
+
+
+
+
+
+
+
+
+
+

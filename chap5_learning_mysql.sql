@@ -85,3 +85,48 @@ SELECT actor_id id FROM actor WHERE first_name = 'ZERO';
 -- 255 caractères max.
 -- Suivent les mêmes règles de nommage que les noms de tables et de colonnes.
 -- Insensibles à la casse
+
+-- 1.2. Aliases de tables
+-------------------------
+
+-- Utiles pour les mêmes raisons que les aliases de colonnes, mais sont parfois la seule manière d'exprimer une query.
+
+SELECT ac.actor_id, ac.first_name, ac.last_name, fla.title 
+FROM actor AS ac INNER JOIN film_actor AS fla USING (actor_id) 
+INNER JOIN film AS fla USING (film_id) 
+WHERE fla.title = 'AFFAIR PREJUDICE'; 
+
+/* =>
++----------+------------+-----------+------------------+ 
+| actor_id | first_name | last_name | title            | 
++----------+------------+-----------+------------------+ 
+|       41 | JODIE      | DEGENERES | AFFAIR PREJUDICE | 
+|       81 | SCARLETT   | DAMON     | AFFAIR PREJUDICE | 
+|       88 | KENNETH    | PESCI     | AFFAIR PREJUDICE | 
+|      147 | FAY        | WINSLET   | AFFAIR PREJUDICE | 
+|      162 | OPRAH      | KILMER    | AFFAIR PREJUDICE | 
++----------+------------+-----------+------------------+  */
+
+-- Si un alias a été utilisé pour une table, impossible de référer à cette table sans utiliser le nouvel alias.
+
+SELECT ac.actor_id, ac.first_name, ac.last_name, fl.title 
+FROM actor AS ac INNER JOIN film_actor AS fla USING (actor_id) 
+INNER JOIN film AS fl USING (film_id) 
+WHERE film.title = 'AFFAIR PREJUDICE'; 
+
+-- => ERROR 1054 (42S22): Unknown column 'film.title' in 'where clause' 
+
+-- Mot clé AS également optionnel, mais tjrs recommandé.
+
+-- Les aliases de tables permettent d'écrire des queries pas faciles à exprimer autrement. p.e., pour savoir si deux films ont le même nom :
+
+SELECT m1.film_id, m2.title 
+FROM film AS m1, film AS m2 
+WHERE m1.title = m2.title 
+AND m1.film_id <> m2.film_id;
+
+-- => Empty set (0.00 sec) (Signification : Il n'y a pas deux films dans la db avec le même nom.)
+
+-- Un film venant d'une table avec alias ne correspond à lui-même dans l'autre table avec alias.
+
+-- Aliases de tables également utiles dans les nested queries utilisant les clauses EXISTS et ON.

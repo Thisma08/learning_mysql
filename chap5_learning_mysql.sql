@@ -307,14 +307,130 @@ AND a1.actor_id <> a2.actor_id;
 +----------+------------+-----------+ */
 
 
+-- 2.3. HAVING
+--------------
+
+-- Permet un controle supplémentaire sur l'aggrégation des records dans une opération GROUP BY
+
+SELECT first_name, last_name, COUNT(film_id)
+FROM actor INNER JOIN film_actor USING (actor_id)
+GROUP BY actor_id, first_name, last_name 
+HAVING COUNT(film_id) > 40
+ORDER BY COUNT(film_id) DESC;
+
+/* =>
++------------+-----------+----------------+
+| first_name | last_name | COUNT(film_id) |
++------------+-----------+----------------+
+| GINA       | DEGENERES |             42 |
+| WALTER     | TORN      |             41 |
++------------+-----------+----------------+ */
+
+-- Doit contenir une expression (COUNT, SUM, MIN, MAX)/colonne présente dans la clause SELECT
+
+-- Si l'on veut écrire une clause HAVING utilisant une colonne ou expression non présente dans la clause SELECT => where
+
+-- HAVING faite pour comment former chaque groupe, pas pour choisir des records dans l'output
+
+SELECT title, COUNT(rental_id) AS num_rented 
+FROM film INNER JOIN inventory USING (film_id)
+INNER JOIN rental USING (inventory_id)
+GROUP BY title
+HAVING num_rented > 30
+ORDER BY num_rented DESC LIMIT 5;
+
+/* =>
++--------------------+------------+
+| title              | num_rented |
++--------------------+------------+
+| BUCKET BROTHERHOOD |         34 |
+| ROCKETEER MOTHER   |         33 |
+| FORWARD TEMPLE     |         32 |
+| GRIT CLOCKWORK     |         32 |
+| JUGGLER HARDLY     |         32 |
++--------------------+------------+ */
+
+-- Ne pas faire cela (Très lent si bcp de données) :
+
+SELECT first_name, last_name, COUNT(film_id) AS film_cnt 
+FROM actor INNER JOIN film_actor USING (actor_id)
+GROUP BY actor_id, first_name, last_name
+HAVING first_name = 'EMILY' AND last_name = 'DEE';
+
+-- Mais faire :
+
+SELECT first_name, last_name, COUNT(film_id) AS film_cnt 
+FROM actor INNER JOIN film_actor USING (actor_id)
+WHERE first_name = 'EMILY' AND last_name = 'DEE'
+GROUP BY actor_id, first_name, last_name;
+
+-- 2.4. Fonct°s d'aggrégation
+-----------------------------
+
+-- 2.4.1. COUNT()
+
+-- Retourne le nbre de records ou le nombre de valeurs dans une colonne. 
+
+-- COUNT(*) => Nmbre de records, sans tenir compte du fait que la valeur est NULL ou non.
+
+-- COUNT(<nom_colonne>) => Nmbre de records, en ne comptant pas les valeurs NULL.
+
+SELECT COUNT(*) FROM customer;
+
+/* =>
++----------+
+| count(*) |
++----------+
+|      599 |
++----------+ */
+
+SELECT COUNT(email) FROM customer;
+
+/* =>
++--------------+
+| count(email) |
++--------------+
+|          598 |
++--------------+ */
+
+-- => Un des client a une adresse email NULL.
+
+-- Peut être utilisée avec DISTINCT pour compter le nombre de valeurs distinctes (COUNT(DISTINCT <column>))
+
+-- 2.4.2. AVG()
+
+-- Retourne la moyenne des valeurs dans le colonne spécifiée.
+
+SELECT AVG(cost) 
+FROM house_prices 
+GROUP BY city;
+
+-- 2.4.3. MAX()
+
+-- Retourne la valeur maximale des records dans un groupe.
+
+SELECT MAX(cost) 
+FROM house_prices
+GROUP BY city;
+
+-- 2.4.4. MIN()
+
+-- Retourne la valeur minimale des records dans un groupe.
+
+SELECT MIN(cost) 
+FROM house_prices
+GROUP BY city;
+
+-- 2.4.5. STD(), STDDEV(), STDDEV_POP() (Synonymes)
+
+-- Retourne la déviation standard des records dans un groupe. 
+-- (Répartit° des résultats aux tests, lorsque les lignes sont regroupées par cours universitaire.)
 
 
+-- SUM()
 
+-- Retourne la somme des valeurs des records dans un groupe.
 
-
-
-
-
-
-
-
+SELECT SUM(cost) 
+FROM house_prices
+GROUP BY city;

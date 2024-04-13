@@ -434,3 +434,327 @@ GROUP BY city;
 SELECT SUM(cost) 
 FROM house_prices
 GROUP BY city;
+
+-- 3. JOINTURES AVANCEES
+--======================
+
+-- 3.1. INNER JOIN
+------------------
+
+-- Fait correspondre des lignes entre deux tables, basé sur le critère précisé dans la clause USING.
+
+SELECT first_name, last_name, film_id 
+FROM actor INNER JOIN film_actor USING (actor_id)
+LIMIT 20;
+
+/* =>
++------------+-----------+---------+
+| first_name | last_name | film_id |
++------------+-----------+---------+
+| PENELOPE   | GUINESS   |       1 |
+| PENELOPE   | GUINESS   |      23 |
+| ...                              |
+| PENELOPE   | GUINESS   |     980 |
+| NICK       | WAHLBERG  |       3 |
++------------+-----------+---------+ */
+
+-- Les lignes n'ayant aucune correspondance ne seront pas incluses dans l'output.
+
+-- Si les noms des identifiants ne sont pas les mêmes dans les deux tables => ON
+
+SELECT first_name, last_name, film_id 
+FROM actor INNER JOIN film_actor
+ON actor.actor_id = film_actor.actor_id
+LIMIT 20;
+
+/* =>
++------------+-----------+---------+
+| first_name | last_name | film_id |
++------------+-----------+---------+
+| PENELOPE   | GUINESS   |       1 |
+| PENELOPE   | GUINESS   |      23 |
+| ...                              |
+| PENELOPE   | GUINESS   |     980 |
+| NICK       | WAHLBERG  |       3 |
++------------+-----------+---------+ */
+
+-- INNER JOIN = JOIN = STRAIGHT JOIN
+
+-- 3.2. UNION
+-------------
+
+-- Combine les outputs de plusieurs clauses SELECT.
+
+-- Utile lorsque l'on veut faire une seule liste depuis plusieurs sources.
+
+SELECT first_name FROM actor
+UNION
+SELECT first_name FROM customer
+UNION
+SELECT title FROM film;
+
+/* =>
++-----------------------------+
+| first_name                  |
++-----------------------------+
+| PENELOPE                    |
+| NICK                        |
+| ED                          |
+| ...                         |
+| ZHIVAGO CORE                |
+| ZOOLANDER FICTION           |
+| ZORRO ARK                   |
++-----------------------------+ */
+
+-- Créer une liste des 5 films les plus loué et des 5 films les moins loués
+
+(SELECT title, COUNT(rental_id) AS num_rented
+FROM film JOIN inventory USING (film_id)
+JOIN rental USING (inventory_id)
+GROUP BY title ORDER BY num_rented DESC LIMIT 5)
+UNION
+(SELECT title, COUNT(rental_id) AS num_rented
+FROM film JOIN inventory USING (film_id)
+JOIN rental USING (inventory_id)
+GROUP BY title ORDER BY num_rented ASC LIMIT 5);
+
+/* =>
++--------------------+------------+
+| title              | num_rented |
++--------------------+------------+
+| BUCKET BROTHERHOOD |         34 |
+| ROCKETEER MOTHER   |         33 |
+| FORWARD TEMPLE     |         32 |
+| GRIT CLOCKWORK     |         32 |
+| JUGGLER HARDLY     |         32 |
+| TRAIN BUNCH        |          4 |
+| HARDLY ROBBERS     |          4 |
+| MIXED DOORS        |          4 |
+| BUNCH MINDS        |          5 |
+| BRAVEHEART HUMAN   |          5 |
++--------------------+------------+ */
+
+-- UNION possède une oppération DISTINCT implicite.
+
+-- (Deux acteurs ont comme prénom "KENNETH")
+
+SELECT first_name 
+FROM actor 
+WHERE actor_id = 88
+UNION
+SELECT first_name 
+FROM actor 
+WHERE actor_id = 169;
+
+/* =>
++------------+
+| first_name |
++------------+
+| KENNETH    |
++------------+*/
+
+-- Si l'on veut voir les doublons => UNION ALL
+
+SELECT first_name 
+FROM actor 
+WHERE actor_id = 88
+UNION ALL
+SELECT first_name 
+FROM actor 
+WHERE actor_id = 169;
+
+/* =>
++------------+
+| first_name |
++------------+
+| KENNETH    |
+| KENNETH    |
++------------+ */
+
+-- Si query utilisant LIMIT ou ORDER BY fait partie d'une clause UNION => Parenthèses
+
+-- UNION concatène simplement les résultats des subqueries sans tenir compte de l'ordre => ORDER BY pas vraiment utile dans ce cas.
+-- Le seul cas ou cela a du sens d'utiliser ORDER BY dans une subquery faisant partie d'une opérat° UNION est quand l'on veut selectionner un ss-ensemble  des résultats.
+
+-- MySQL ignore les ORDER BY dans uns subquery si elles sont utilisées sans LIMIT.
+
+-- 3.3. LEFT JOIN
+-----------------
+
+-- Chaque ligne de la table de gauche est traitée et incluse dans l'output,
+-- Avec les données correspondant venant de la seconde table si elles existent, sinon NULL.
+
+SELECT title, rental_date
+FROM film 
+LEFT JOIN inventory USING (film_id)
+LEFT JOIN rental USING (inventory_id);
+
+/* =>
++-----------------------------+---------------------+
+| title                       | rental_date         |
++-----------------------------+---------------------+
+| ACADEMY DINOSAUR            | 2005-07-08 19:03:15 |
+| ACADEMY DINOSAUR            | 2005-08-02 20:13:10 |
+| ACADEMY DINOSAUR            | 2005-08-21 21:27:43 |
+| ...                                               |
+| WAKE JAWS                   | NULL                |
+| WALLS ARTIST                | NULL                |
+| ...                                               |
+| ZORRO ARK                   | 2005-07-31 07:32:21 |
+| ZORRO ARK                   | 2005-08-19 03:49:28 |
++-----------------------------+---------------------+ */
+
+-- Ordre des tables dans un LEFT JOIN important.
+
+-- 3.4. RIGHT JOIN
+-----------------
+
+-- Chaque ligne de la table de droite est traitée et incluse dans l'output,
+-- Avec les données correspondant venant de la seconde table si elles existent, sinon NULL.
+
+SELECT title, rental_date
+FROM rental RIGHT JOIN inventory USING (inventory_id)
+RIGHT JOIN film USING (film_id)
+ORDER BY rental_date DESC;
+
+/* =>
+...
+| SUICIDES SILENCE            | NULL                |
+| TADPOLE PARK                | NULL                |
+| TREASURE COMMAND            | NULL                |
+| VILLAIN DESPERATE           | NULL                |
+| VOLUME HOUSE                | NULL                |
+| WAKE JAWS                   | NULL                |
+| WALLS ARTIST                | NULL                |
++-----------------------------+---------------------+ */
+
+-- Pas beacoup utilisée, à éviter si possible.
+
+-- 3.5. NATURAL JOIN
+--------------------
+
+-- Cherche les colonnes avec un nom identique, puis les ajoute dans un INNER JOIN.
+
+SELECT first_name, last_name, film_id
+FROM actor_info NATURAL JOIN film_actor
+LIMIT 20;
+
+/* =>
++------------+-----------+---------+
+| first_name | last_name | film_id |
++------------+-----------+---------+
+| PENELOPE   | GUINESS   |       1 |
+| PENELOPE   | GUINESS   |      23 |
+| ...                              |
+| PENELOPE   | GUINESS   |     980 |
+| NICK       | WAHLBERG  |       3 |
++------------+-----------+---------+ */
+
+-- 3.6. Expressions constantes dans les jointures
+-------------------------------------------------
+
+-- Lorsque l'on utilise ON, il est possible d'ajouter des expressions constantes.
+
+--Soit la query :
+SELECT first_name, last_name, title
+FROM actor 
+JOIN film_actor USING (actor_id)
+JOIN film USING (film_id)
+WHERE actor_id = 11;
+
+/* =>
++------------+-----------+--------------------+
+| first_name | last_name | title              |
++------------+-----------+--------------------+
+| ZERO       | CAGE      | CANYON STOCK       |
+| ZERO       | CAGE      | DANCES NONE        |
+| ...                                         |
+| ZERO       | CAGE      | WEST LION          |
+| ZERO       | CAGE      | WORKER TARZAN      |
++------------+-----------+--------------------+ */
+
+-- Il est possible de déplacer la clause actor_id dans le join :
+
+SELECT first_name, last_name, title
+FROM actor 
+JOIN film_actor ON actor.actor_id = film_actor.actor_id AND actor.actor_id = 11
+JOIN film USING (film_id);
+
+/* =>
++------------+-----------+--------------------+
+| first_name | last_name | title              |
++------------+-----------+--------------------+
+| ZERO       | CAGE      | CANYON STOCK       |
+| ZERO       | CAGE      | DANCES NONE        |
+| ...                                         |
+| ZERO       | CAGE      | WEST LION          |
+| ZERO       | CAGE      | WORKER TARZAN      |
++------------+-----------+--------------------+ */
+
+-- Pourquoi ? Les conditions constantes dans les jointures sont évaluées et résolues différemment quand dans les clauses WHERE.
+
+SELECT email, name AS category_name, COUNT(rental_id) AS cnt
+FROM category cat LEFT JOIN film_category USING (category_id)
+LEFT JOIN inventory USING (film_id)
+LEFT JOIN rental USING (inventory_id)
+LEFT JOIN customer cs USING (customer_id)
+WHERE cs.email = 'WESLEY.BULL@sakilacustomer.org'
+GROUP BY email, category_name
+ORDER BY cnt DESC;
+
+/* =>
++--------------------------------+---------------+-----+
+| email                          | category_name | cnt |
++--------------------------------+---------------+-----+
+| WESLEY.BULL@sakilacustomer.org | Games         |   9 |
+| WESLEY.BULL@sakilacustomer.org | Foreign       |   6 |
+| ...                                                  |
+| WESLEY.BULL@sakilacustomer.org | Comedy        |   1 |
+| WESLEY.BULL@sakilacustomer.org | Sports        |   1 |
++--------------------------------+---------------+-----+ */
+
+-- Si l'on déplace la clause cs.email dans la clause LEFT JOIN customer cs
+
+SELECT email, name AS category_name, COUNT(rental_id) AS cnt
+FROM category cat LEFT JOIN film_category USING (category_id)
+LEFT JOIN inventory USING (film_id)
+LEFT JOIN rental USING (inventory_id)
+LEFT JOIN customer cs ON rental.customer_id = cs.customer_id
+AND cs.email = 'WESLEY.BULL@sakilacustomer.org'
+GROUP BY email, category_name
+ORDER BY cnt DESC;
+
+/* =>
++--------------------------------+-------------+------+
+| email                          | name        | cnt  |
++--------------------------------+-------------+------+
+| NULL                           | Sports      | 1178 |
+| NULL                           | Animation   | 1164 |
+| ...                                                 |
+| NULL                           | Travel      |  834 |
+| NULL                           | Music       |  829 |
+| WESLEY.BULL@sakilacustomer.org | Games       |    9 |
+| WESLEY.BULL@sakilacustomer.org | Foreign     |    6 |
+| ...                                                 |
+| WESLEY.BULL@sakilacustomer.org | Comedy      |    1 |
+| NULL                           | Thriller    |    0 |
++--------------------------------+-------------+------+ */
+
+-- Non seulement nous avons les nombres de locations de Weasley, mais également ceux de tous les autres clients, regroupés en catégories.
+
+-- Le contenu de la clause WHERE sont appliqués après que les joins soient résolus et éxecutés.
+
+-- MySQL, au lieu de renvoyer les records où cs.email = 'WESLEY.BULL@sakilacustomer.org', 
+-- va commencer l'éxécut° comme si des INNER JOIN avaient été utilisés.
+
+-- Lorsque l'on a la condition "cs.email" dans la clause LEFT JOIN, on dit à MySQL que l'on veut
+-- ajouter les colonnes de la table customer aux résultats (tables category, inventory et rental),
+-- mais seulement lorsque la valeur 'WESLEY.BULL@sakilacustomer.org' est présente dans la colonne email.
+
+-- LEFT JOIN => NULL dans chaque colonne de la table customer dans les records n'ayant pas de correspondance.
+
+
+
+
+
+

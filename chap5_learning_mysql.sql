@@ -753,8 +753,411 @@ ORDER BY cnt DESC;
 
 -- LEFT JOIN => NULL dans chaque colonne de la table customer dans les records n'ayant pas de correspondance.
 
+-- 4. NESTED Queries
+--==================
+
+-- 4.1. Bases
+-------------
+
+SELECT first_name, last_name 
+FROM actor 
+JOIN film_actor USING (actor_id)
+WHERE film_id = (SELECT film_id 
+FROM film
+WHERE title = 'ZHIVAGO CORE');
+
+/* =>
++------------+-----------+
+| first_name | last_name |
++------------+-----------+
+| UMA        | WOOD      |
+| NICK       | STALLONE  |
+| GARY       | PENN      |
+| SALMA      | NOLTE     |
+| KENNETH    | HOFFMAN   |
+| WILLIAM    | HACKMAN   |
++------------+-----------+ */
+
+-- Même chose que la query permettant de trouver tous les noms des acteurs ayant joué ds un film particulier:
+/* SELECT first_name, last_name 
+FROM actor JOIN film_actor USING (actor_id)
+JOIN film USING (film_id)
+WHERE title = 'ZHIVAGO CORE'; */
+
+-- inner query entre ().
+
+-- Nested query = Une query ds une autre.
+
+-- Nested queries non preferable en terme de performance (Plus lentes), mais cela est parfois le seul choix si l'on veut écrire 1 seule query.
+-- et elles peuvent satisfaire des besoins d'informations qui ne sont pas résolvables facilement.
+
+-- Exemple:
+
+SELECT MAX(rental_date) 
+FROM rental
+JOIN customer USING (customer_id)
+WHERE email = 'WESLEY.BULL@sakilacustomer.org';
+
+/* =>
++---------------------+
+| MAX(rental_date)    |
++---------------------+
+| 2005-08-23 15:46:33 |
++---------------------+ */
+
+-- On peut utiliser l'output en tant qu'input d'une autre query:
+SELECT title 
+FROM film
+JOIN inventory USING (film_id)
+JOIN rental USING (inventory_id)
+JOIN customer USING (customer_id)
+WHERE email = 'WESLEY.BULL@sakilacustomer.org'
+AND rental_date = '2005-08-23 15:46:33';
+
+/* =>
++-------------+
+| title       |
++-------------+
+| KARATE MOON |
++-------------+ */
+
+-- Grace aux nested queries, on peut faire ces deux étapes d'un coup:
+
+SELECT title 
+FROM film 
+JOIN inventory USING (film_id)
+JOIN rental USING (inventory_id)
+WHERE rental_date = (SELECT MAX(rental_date) FROM rental
+JOIN customer USING (customer_id)
+WHERE email = 'WESLEY.BULL@sakilacustomer.org');
+
+/* =>
++-------------+
+| title       |
++-------------+
+| KARATE MOON |
++-------------+ */
+
+-- 4.2. Les clauses ANY, SOME, ALL, IN, NOT IN
+----------------------------------------------
+
+-- 4.2.1. ANY et IN
+
+SELECT emp_no, first_name, last_name, hire_date
+FROM employees JOIN titles USING (emp_no)
+WHERE title = 'Assistant Engineer'
+AND hire_date < ANY (SELECT hire_date FROM
+employees JOIN titles USING (emp_no)
+WHERE title = 'Manager');
+
+/* =>
++--------+----------------+------------------+------------+
+| emp_no | first_name     | last_name        | hire_date  |
++--------+----------------+------------------+------------+
+|  10009 | Sumant         | Peac             | 1985-02-18 |
+|  10066 | Kwee           | Schusler         | 1986-02-26 |
+| ...                                                     |
+| ...                                                     |
+| 499958 | Srinidhi       | Theuretzbacher   | 1989-12-17 |
+| 499974 | Shuichi        | Piazza           | 1989-09-16 |
++--------+----------------+------------------+------------+ */
 
 
+-- ANY => BOOLEAN
+
+-- ANY = SOME
+
+-- ANY retourne les valeurs satisfiant au moins un condit° (OR)
+
+-- Si = ANY => IN
+
+-- 4.2.2. ALL
+
+SELECT emp_no, first_name, last_name, hire_date
+FROM employees JOIN titles USING (emp_no)
+WHERE title = 'Assistant Engineer'
+AND hire_date < ALL (SELECT hire_date FROM
+employees JOIN titles USING (emp_no)
+WHERE title = 'Manager');
+
+/* => Empty set (0.18 sec)
+ */
+ 
+-- Raison : Dans les données, le 1er manager a été embauché le 1er janvier 1985,
+-- et le 1er ingénieur assistant a été embauché le 1er février 1985.
+
+-- ALL retourne seulement les valeurs où TOUTES les condit°s sont remplies (AND)
+
+-- 4.2.3. Row subqueries
+
+-- Marche avec +ieurs colonnes et +ieurs lignes.
+
+SELECT emp_no, YEAR(from_date) AS fd
+FROM titles WHERE title = 'Manager' AND
+(emp_no, YEAR(from_date)) IN
+(SELECT emp_no, YEAR(from_date)
+FROM titles WHERE title <> 'Manager');
+
+/* =>
++--------+------+
+| emp_no | fd   |
++--------+------+
+| 110765 | 1989 |
+| 111784 | 1988 |
++--------+------+ */
+
+-- Syntaxe : Liste de colonnes entre () après WHERE, inner query retourne 2 colonnes
+
+-- 4.3. EXISTS et NOT EXISTS
+----------------------------
+
+-- 4.3.1. Bases
+
+SELECT COUNT(*) 
+FROM film
+WHERE EXISTS (SELECT * FROM rental);
+
+/* =>
++----------+
+| COUNT(*) |
++----------+
+|     1000 |
++----------+ */
+
+-- Retourne au moins 1 ligne, quoi qu'il arrive.
+
+-- Si la inner query est vraie, la outer query retourne une ligne.
+
+-- Ds l'exemple, le nbre de lignes dans la table film est compté car la inner query est vraie pour chacune d'elles.
+
+-- Si la inner query est fausse :
+
+SELECT title FROM film
+WHERE EXISTS (SELECT * 
+FROM film
+WHERE title = 'IS THIS A MOVIE?');
+	
+/* => Empty set (0.00 sec)
+ */
+
+-- NOT EXISTS fait l'inverse :
+
+SELECT * FROM actor 
+WHERE NOT EXISTS
+(SELECT * 
+FROM film 
+WHERE title = 'ZHIVAGO CORE');
+
+/* Empty set (0.00 sec)
+ */
+ 
+-- 4.3.2. Subqueries corrélées
+
+-- Véritable usage de EXISTS et NOT EXISTS
+
+SELECT first_name, last_name FROM staff
+WHERE EXISTS (SELECT * FROM customer
+WHERE customer.first_name = staff.first_name
+AND customer.last_name = staff.last_name);
+
+/* Empty set (0.01 sec)
+ */
+ 
+-- Pas d'output car personne dans le staff n'est aussi un client.
+ 
+-- Ajout d'un client avec les mêmes détails qu'un membre du staff:
+
+INSERT INTO customer(store_id, first_name, last_name,
+email, address_id, create_date)
+VALUES (1, 'Mike', 'Hillyer',
+'Mike.Hillyer@sakilastaff.com', 3, NOW());
+
+/* => Query OK, 1 row affected (0.02 sec)
+ */
+
+SELECT first_name, last_name FROM staff
+WHERE EXISTS (SELECT * FROM customer
+WHERE customer.first_name = staff.first_name
+AND customer.last_name = staff.last_name);
+
+/* =>
++------------+-----------+
+| first_name | last_name |
++------------+-----------+
+| Mike       | Hillyer   |
++------------+-----------+ */
+
+-- Query "SELECT * FROM customer WHERE customer.first_name = staff.first_name;"
+-- Impossible a éxecuter seule.
+
+-- Cela est légal quand éxecuté dans une subquery car les tables listées dans l'outer query peuvent être accédées dans l'inner query.
+
+-- 4.4. Nested queries dans FROM
+--------------------------------
+
+SELECT emp_no, monthly_salary FROM
+(SELECT emp_no, salary/12 AS monthly_salary FROM salaries) AS ms
+LIMIT 5;
+
+/* =>
++--------+----------------+
+| emp_no | monthly_salary |
++--------+----------------+
+|  10001 |      5009.7500 |
+|  10001 |      5175.1667 |
+|  10001 |      5506.1667 |
+|  10001 |      5549.6667 |
+|  10001 |      5580.0833 |
++--------+----------------+ */
 
 
+-- Subquery => table dérivée
 
+-- Alias sur la table dérivée obligatoire. Sinon :
+-- "ERROR 1248 (42000): Every derived table must have its own alias"
+
+-- 4.4. Nested queries dans les JOINs
+-------------------------------------
+
+-- Pour lister le nobre de films de chaque catégorie qu'un client particulier a loué:
+
+SELECT cat.name AS category_name, cnt
+FROM category AS cat
+LEFT JOIN (SELECT cat.name, COUNT(cat.category_id) AS cnt
+   FROM category AS cat
+   LEFT JOIN film_category USING (category_id)
+   LEFT JOIN inventory USING (film_id)
+   LEFT JOIN rental USING (inventory_id)
+   JOIN customer cs ON rental.customer_id = cs.customer_id
+   WHERE cs.email = 'WESLEY.BULL@sakilacustomer.org'
+   GROUP BY cat.name) AS customer_cat USING (name)
+ORDER BY cnt DESC;
+
+/* =>
++-------------+------+
+| name        | cnt  |
++-------------+------+
+| Games       |    9 |
+| Foreign     |    6 |
+| ...                |
+| Children    |    1 |
+| Sports      |    1 |
+| Sci-Fi      | NULL |
+| Action      | NULL |
+| Thriller    | NULL |
++-------------+------+ */
+
+-- Puissant, mais pas très optimisé.
+
+-- 5. USER VARIABLES
+--==================
+
+-- Servent à sauver une valeur pour un usage ultérieur.
+
+SELECT @film:=title FROM film WHERE film_id = 1;
+
+/* =>
++------------------+
+| @film:=title     |
++------------------+
+| ACADEMY DINOSAUR |
++------------------+ */
+
+SELECT @film;
+
+/* =>
++------------------+
+| @film            |
++------------------+
+| ACADEMY DINOSAUR |
++------------------+ */
+
+-- Mais il y a un avertissement :
+/* *************************** 1. row ***************************
+  Level: Warning
+   Code: 1287
+Message: Setting user variables within expressions is deprecated
+and will be removed in a future release. Consider alternatives:
+'SET variable=expression, ...', or
+'SELECT expression(s) INTO variables(s)'. */
+
+-- 2 alternatives :
+
+SET @film := (SELECT title FROM film WHERE film_id = 1);
+
+/* Query OK, 0 rows affected (0.00 sec)
+ */
+SELECT @film;
+
+/*=>
++------------------+
+| @film            |
++------------------+
+| ACADEMY DINOSAUR |
++------------------+ */
+
+-- Ou bien :
+
+SELECT title INTO @film FROM film WHERE film_id = 1;
+
+/* => Query OK, 1 row affected (0.00 sec)
+ */
+SELECT @film;
+ 
+/*=>
++------------------+
+| @film            |
++------------------+
+| ACADEMY DINOSAUR |
++------------------+ */
+
+-- Pour définir explicitement une variable :
+
+SET @counter := 0;
+
+-- := optionel. on peut écrire =. Assignements séparés par des ,
+
+SET @counter = 0, @age := 23;
+
+-- Syntaxe alternative : SELECT INTO.
+
+SELECT 0 INTO @counter;
+
+SELECT 0, 23 INTO @counter, @age;
+
+-- Exemple d'utilisat° :
+
+SELECT MAX(rental_date) INTO @recent FROM rental
+JOIN customer USING (customer_id)
+WHERE email = 'WESLEY.BULL@sakilacustomer.org';
+
+SELECT title 
+FROM film
+JOIN inventory USING (film_id)
+JOIN rental USING (inventory_id)
+JOIN customer USING (customer_id)
+WHERE email = 'WESLEY.BULL@sakilacustomer.org'
+AND rental_date = @recent;
+
+/* =>
++-------------+
+| title       |
++-------------+
+| KARATE MOON |
++-------------+ */
+
+-- Uniques à une seule connection
+
+-- Nom = chaines alphanumériques pouvant inclure . _ et $
+
+-- Noms case sensitive
+
+-- Variable non initialisée = NULL
+
+-- Variables détruites qd connection fermée
+
+-- Eviter d'assigner une valeur à une variable et de l'utiliser dans un SELECT.
+-- Raisons : Nvelle valeur peut ne pas être disponible immédiatement ds la même query,
+-- et le type d'une variable est défini quand il est assigné dans une query => 
+-- Essayer de l'utiliser + tard sous un type différent ds la même commande SQL
+-- => Résultats inattendus

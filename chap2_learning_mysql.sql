@@ -96,8 +96,3 @@ La 1ere forme vise à éliminer les groupes répétés, à séparer les données
 La 2eme forme ajoute la création de tables distinctes pour les ensembles de valeurs applicables à plusieurs enregistrements, reliées par des clés étrangères. 
 
 La 3eme forme ajoute l'élimination des champs indépendants de la clé. En pratique, les problèmes de performance peuvent nécessiter la dénormalisation des données pour les traiter. */
-
-
--- 4. UTILISER LE MODELE ER
---=========================
-

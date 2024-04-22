@@ -1,5 +1,6 @@
 -- But de DISTINCT : Supprimer les duplicates
 
+-- Ex 1 :
 -- Sans DISTINCT :
 SELECT prenom FROM client;
 /* 
@@ -13,20 +14,6 @@ SELECT prenom FROM client;
 | Marc   |
 | Claire |
 +--------+
-6 rows in set (0.00 sec) */
-
-SELECT nom, prenom FROM client;
-/* 
-+---------+--------+
-| nom     | prenom |
-+---------+--------+
-| Mahaux  | Mathis | <- Doublon (Ajouté à titre d'exemple) 
-| Mahaux  | Mathis | <- Doublon (Ajouté à titre d'exemple)
-| Mahaux  | Sam    |
-| Musette | Alice  |
-| Musette | Marc   |
-| Fassin  | Claire |
-+---------+--------+
 6 rows in set (0.00 sec) */
 
 -- Avec DISTINCT :
@@ -43,6 +30,23 @@ SELECT DISTINCT prenom FROM client;
 +--------+
 5 rows in set (0.00 sec) */
 
+-- Ex 2 :
+-- Sans DISTINCT :
+SELECT nom, prenom FROM client;
+/* 
++---------+--------+
+| nom     | prenom |
++---------+--------+
+| Mahaux  | Mathis | <- Doublon (Ajouté à titre d'exemple) 
+| Mahaux  | Mathis | <- Doublon (Ajouté à titre d'exemple)
+| Mahaux  | Sam    |
+| Musette | Alice  |
+| Musette | Marc   |
+| Fassin  | Claire |
++---------+--------+
+6 rows in set (0.00 sec) */
+
+-- Avec DISTINCT
 SELECT DISTINCT nom, prenom FROM client;
  /* 
 +---------+--------+

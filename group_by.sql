@@ -1,7 +1,7 @@
 -- But de GROUP BY : Grouper les données en output dans le but d'une aggrégat°.
 -- Permet d'utiliser les foncti°s d'aggrégat° sur les données quand le contenu de la clause SELECT contient des colonnes autres que celles dans la fonct° d'aggrégat°.
 
--- EX1:
+-- Ex 1 :
 -- Sans GROUP BY :
 SELECT nom 
 FROM client;
@@ -32,7 +32,7 @@ GROUP BY nom;
 +---------+
 3 rows in set (0.00 sec) */
 
--- EX2:
+-- Ex 2 :
 -- Sans GROUP BY
 SELECT c.nom, c.prenom, a.id AS achat_id 
 FROM client c 
